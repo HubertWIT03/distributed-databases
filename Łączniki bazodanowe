@@ -1,0 +1,33 @@
+1.Będąc  w bazie 11a  stwórz synonimy prywatne nazwaSiedziba i nazwaFilia dla tabel z bazy baza 11a (siedziba)  i tabel z bazy baza 11b (filia) odpowiednio, np. wykladowcySiedziba i wykladowcyFilia dla wszystkich tabel za wyjątkiem tabeli umowy. Przy tworzeniu synonimu odwołującego się do zdalnej lokalizacji wykorzystaj stworzony łacznik bazodanowy. 
+
+CREATE 
+synonym kursanciSiedziba
+for kursanci
+
+CREATE 
+synonym kursySiedziba
+for kursy
+
+CREATE 
+synonym rodzajeSiedziba
+for rodzaje
+
+CREATE 
+synonym wykladowcySiedziba
+for wykladowcy
+
+CREATE 
+synonym kursanciFilia
+for kursanci@dblinkfilia
+
+CREATE 
+synonym kursyFilia
+for kursy@dblinkfilia
+
+CREATE 
+synonym rodzajeFilia
+for rodzaje@dblinkfilia
+
+CREATE 
+synonym wykladowcyFilia
+for wykladowcy@dblinkfilia
