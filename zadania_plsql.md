@@ -17,17 +17,17 @@ Liczba wykładowców: 19
 ------------------------------------------------------------
 
 DECLARE
-    v_liczba_kursantow NUMBER;
-    v_liczba_kursow NUMBER;
-    v_liczba_wykladowcow NUMBER;
+    v_kursanci NUMBER;
+    v_kursy NUMBER;
+    v_wykladowcy NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_liczba_kursantow FROM kursanci;
-    SELECT COUNT(*) INTO v_liczba_kursow FROM kursy;
-    SELECT COUNT(*) INTO v_liczba_wykladowcow FROM wykladowcy;
- 
-    DBMS_OUTPUT.PUT_LINE('Liczba kursantów: ' || v_liczba_kursantow);
-    DBMS_OUTPUT.PUT_LINE('Liczba kursów: ' || v_liczba_kursow);
-    DBMS_OUTPUT.PUT_LINE('Liczba wykładowców: ' || v_liczba_wykladowcow);
+    SELECT COUNT(*) INTO v_kursanci FROM kursanci;
+    SELECT COUNT(*) INTO v_kursy FROM kursy;
+    SELECT COUNT(*) INTO v_wykladowcy FROM wykladowcy;
+
+    DBMS_OUTPUT.PUT_LINE('Liczba kursantów: ' || v_kursanci);
+    DBMS_OUTPUT.PUT_LINE('Liczba kursów: ' || v_kursy);
+    DBMS_OUTPUT.PUT_LINE('Liczba wykładowców: ' || v_wykladowcy);
 END;
 /
 
@@ -43,7 +43,7 @@ BEGIN
     JOIN kursy k ON u.kurs_id = k.kurs_id
     JOIN rodzaje r ON k.rodzaj_id = r.rodzaj_id
     WHERE u.miasto = 'BYDGOSZCZ';
- 
+
     DBMS_OUTPUT.PUT_LINE('Łączna wartość umów dla BYDGOSZCZY: ' || v_laczna_wartosc || ' zł');
 END;
 /
@@ -86,23 +86,24 @@ END;
 
 zad5. Procedura raportująca umowy dla miasta
 CREATE OR REPLACE PROCEDURE raport_umow_miasto(p_miasto IN VARCHAR2) IS
-    v_liczba_umow NUMBER;
-    v_laczna_wartosc NUMBER;
-    v_srednia_wartosc NUMBER;
+    v_liczba NUMBER;
+    v_wartosc NUMBER;
+    v_srednia NUMBER;
 BEGIN
     SELECT COUNT(*), NVL(SUM(r.cena), 0), NVL(AVG(r.cena), 0)
-    INTO v_liczba_umow, v_laczna_wartosc, v_srednia_wartosc
+    INTO v_liczba, v_wartosc, v_srednia
     FROM umowy u
     JOIN kursy k ON u.kurs_id = k.kurs_id
     JOIN rodzaje r ON k.rodzaj_id = r.rodzaj_id
     WHERE u.miasto = p_miasto;
- 
+
     DBMS_OUTPUT.PUT_LINE('Raport dla miasta: ' || p_miasto);
-    DBMS_OUTPUT.PUT_LINE('Liczba umów: ' || v_liczba_umow);
-    DBMS_OUTPUT.PUT_LINE('Łączna wartość umów: ' || v_laczna_wartosc || ' zł');
-    DBMS_OUTPUT.PUT_LINE('Średnia wartość umowy: ' || ROUND(v_srednia_wartosc, 2) || ' zł');
+    DBMS_OUTPUT.PUT_LINE('Liczba umów: ' || v_liczba);
+    DBMS_OUTPUT.PUT_LINE('Łączna wartość umów: ' || v_wartosc || ' zł');
+    DBMS_OUTPUT.PUT_LINE('Średnia wartość umowy: ' || ROUND(v_srednia, 2) || ' zł');
 END;
 /
+-- Wywołanie: EXECUTE raport_umow_miasto('BYDGOSZCZ');
 
 zad6. Funkcja zwracająca cenę kursu
 BEGIN raport_umow_miasto('BYDGOSZCZ'); END;
@@ -164,11 +165,90 @@ BEGIN
 
 
 zad 9. Raport umów ze Szczecina
-
+CREATE OR REPLACE PROCEDURE raport_umow_szczecin IS
+BEGIN
+    FOR r IN (
+        SELECT u.umowa_id, k.imie, k.nazwisko, rod.nazwa AS nazwa_kursu, rod.cena, u.miasto
+        FROM umowy u
+        JOIN kursanciFilia k ON u.kursant_id = k.kursant_id
+        JOIN kursyFilia kf ON u.kurs_id = kf.kurs_id
+        JOIN rodzajeFilia rod ON kf.rodzaj_id = rod.rodzaj_id
+        WHERE u.miasto = 'SZCZECIN'
+    ) LOOP
+        DBMS_OUTPUT.PUT_LINE('Umowa ' || r.umowa_id || ' | ' || 
+                             r.imie || ' ' || r.nazwisko || ' | ' || 
+                             r.nazwa_kursu || ' | ' || r.cena || ' zł | ' || r.miasto);
+    END LOOP;
+END;
+/
+-- Wywołanie: EXECUTE raport_umow_szczecin;
 
 zad 10. Raport całej uczelni
 
-    
-    CLOSE c_umowy;
+ CREATE OR REPLACE PROCEDURE raport_uczelni IS
+    -- Bydgoszcz
+    v_b_liczba NUMBER := 0; v_b_suma NUMBER := 0;
+    v_b_max_kurs VARCHAR2(100); v_b_pop_kurs VARCHAR2(100);
+
+    -- Szczecin
+    v_s_liczba NUMBER := 0; v_s_suma NUMBER := 0;
+    v_s_max_kurs VARCHAR2(100); v_s_pop_kurs VARCHAR2(100);
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('RAPORT UCZELNI');
+    DBMS_OUTPUT.PUT_LINE('--------------------------------');
+
+    -- ===== BYDGOSZCZ =====
+    SELECT COUNT(*), NVL(SUM(r.cena), 0) INTO v_b_liczba, v_b_suma
+    FROM umowy u JOIN kursy k ON u.kurs_id = k.kurs_id JOIN rodzaje r ON k.rodzaj_id = r.rodzaj_id
+    WHERE u.miasto = 'BYDGOSZCZ';
+
+    SELECT nazwa INTO v_b_max_kurs FROM (
+        SELECT r.nazwa FROM rodzaje r ORDER BY r.cena DESC
+    ) WHERE ROWNUM = 1;
+
+    BEGIN
+        SELECT nazwa INTO v_b_pop_kurs FROM (
+            SELECT r.nazwa, COUNT(*) as ilosc FROM umowy u
+            JOIN kursy k ON u.kurs_id = k.kurs_id JOIN rodzaje r ON k.rodzaj_id = r.rodzaj_id
+            WHERE u.miasto = 'BYDGOSZCZ' GROUP BY r.nazwa ORDER BY ilosc DESC
+        ) WHERE ROWNUM = 1;
+    EXCEPTION WHEN NO_DATA_FOUND THEN v_b_pop_kurs := 'Brak danych'; END;
+
+    DBMS_OUTPUT.PUT_LINE('Miasto: BYDGOSZCZ');
+    DBMS_OUTPUT.PUT_LINE('Liczba umów: ' || v_b_liczba);
+    DBMS_OUTPUT.PUT_LINE('Łączna wartość umów: ' || v_b_suma || ' zł');
+    DBMS_OUTPUT.PUT_LINE('Najdroższy kurs: ' || v_b_max_kurs);
+    DBMS_OUTPUT.PUT_LINE('Najpopularniejszy kurs: ' || v_b_pop_kurs);
+    DBMS_OUTPUT.PUT_LINE('');
+
+    -- ===== SZCZECIN (korzysta z synonimów do bazy filii) =====
+    SELECT COUNT(*), NVL(SUM(rod.cena), 0) INTO v_s_liczba, v_s_suma
+    FROM umowy u JOIN kursyFilia kf ON u.kurs_id = kf.kurs_id JOIN rodzajeFilia rod ON kf.rodzaj_id = rod.rodzaj_id
+    WHERE u.miasto = 'SZCZECIN';
+
+    SELECT nazwa INTO v_s_max_kurs FROM (
+        SELECT nazwa FROM rodzajeFilia ORDER BY cena DESC
+    ) WHERE ROWNUM = 1;
+
+    BEGIN
+        SELECT nazwa INTO v_s_pop_kurs FROM (
+            SELECT rod.nazwa, COUNT(*) as ilosc FROM umowy u
+            JOIN kursyFilia kf ON u.kurs_id = kf.kurs_id JOIN rodzajeFilia rod ON kf.rodzaj_id = rod.rodzaj_id
+            WHERE u.miasto = 'SZCZECIN' GROUP BY rod.nazwa ORDER BY ilosc DESC
+        ) WHERE ROWNUM = 1;
+    EXCEPTION WHEN NO_DATA_FOUND THEN v_s_pop_kurs := 'Brak danych'; END;
+
+    DBMS_OUTPUT.PUT_LINE('Miasto: SZCZECIN');
+    DBMS_OUTPUT.PUT_LINE('Liczba umów: ' || v_s_liczba);
+    DBMS_OUTPUT.PUT_LINE('Łączna wartość umów: ' || v_s_suma || ' zł');
+    DBMS_OUTPUT.PUT_LINE('Najdroższy kurs: ' || v_s_max_kurs);
+    DBMS_OUTPUT.PUT_LINE('Najpopularniejszy kurs: ' || v_s_pop_kurs);
+    DBMS_OUTPUT.PUT_LINE('--------------------------------');
+
+    -- ===== PODSUMOWANIE =====
+    DBMS_OUTPUT.PUT_LINE('PODSUMOWANIE');
+    DBMS_OUTPUT.PUT_LINE('Liczba wszystkich umów: ' || (v_b_liczba + v_s_liczba));
+    DBMS_OUTPUT.PUT_LINE('Łączna wartość wszystkich umów: ' || (v_b_suma + v_s_suma) || ' zł');
 END;
 /
+-- Wywołanie: EXECUTE raport_uczelni;
